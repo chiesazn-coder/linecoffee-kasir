@@ -194,9 +194,7 @@ export default function Kasir() {
   const [customerName, setCustomerName] = useState("");
   const [sugar, setSugar] = useState("normal"); // less | normal | extra
   const [ice, setIce] = useState("normal");     // less | normal | extra
-
-
-
+  const [editingId, setEditingId] = useState(null); // id cart item yg sedang edit
 
   const total = useMemo(
     () => cart.reduce((sum, it) => sum + it.price * it.qty, 0),
@@ -289,6 +287,13 @@ export default function Kasir() {
   function parseRupiahInput(v) {
     return Number(String(v).replace(/[^\d]/g, "")) || 0;
   }
+
+  function niceOpt(v) {
+    if (v === "less") return "Less";
+    if (v === "extra") return "Extra";
+    return "Normal";
+  }
+  
   
   const paid = useMemo(() => {
     // kalau non-cash, dianggap bayar pas
@@ -350,6 +355,8 @@ export default function Kasir() {
     setCash("");
     setCustomerName("");   // ✅ tambahin ini
     setIsCheckoutOpen(false);
+    setEditingId(null);
+    setEditingId(null);
   }
 
   function fmtDate(iso) {
@@ -641,32 +648,55 @@ export default function Kasir() {
                           {it.product} <span className="text-zinc-500">({it.size}ml)</span>
                         </div>
                         <div className="text-xs text-zinc-600">Varian: {it.variant}</div>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          <div>
-                            <div className="mb-1 text-[11px] font-medium text-zinc-600">Ice</div>
-                            <select
-                              value={it.ice || "normal"}
-                              onChange={(e) => updateCartItem(it.id, { ice: e.target.value })}
-                              className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-2 text-sm"
+                        {/* RINGKAS ICE/SUGAR + EDIT */}
+                        <div className="mt-2">
+                          {/* baris ringkas */}
+                          <div className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-2 py-2">
+                            <div className="text-xs font-medium text-zinc-700">
+                              Ice: <span className="font-semibold text-zinc-900">{niceOpt(it.ice || "normal")}</span>
+                              <span className="mx-2 text-zinc-300">•</span>
+                              Sugar: <span className="font-semibold text-zinc-900">{niceOpt(it.sugar || "normal")}</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setEditingId(editingId === it.id ? null : it.id)}
+                              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
                             >
-                              <option value="less">Less</option>
-                              <option value="normal">Normal</option>
-                              <option value="extra">Extra</option>
-                            </select>
+                              {editingId === it.id ? "Done" : "Edit"}
+                            </button>
                           </div>
 
-                          <div>
-                            <div className="mb-1 text-[11px] font-medium text-zinc-600">Sugar</div>
-                            <select
-                              value={it.sugar || "normal"}
-                              onChange={(e) => updateCartItem(it.id, { sugar: e.target.value })}
-                              className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-2 text-sm"
-                            >
-                              <option value="less">Less</option>
-                              <option value="normal">Normal</option>
-                              <option value="extra">Extra</option>
-                            </select>
-                          </div>
+                          {/* panel edit */}
+                          {editingId === it.id && (
+                            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <div>
+                                <div className="mb-1 text-[11px] font-medium text-zinc-600">Ice</div>
+                                <select
+                                  value={it.ice || "normal"}
+                                  onChange={(e) => updateCartItem(it.id, { ice: e.target.value })}
+                                  className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-2 text-sm"
+                                >
+                                  <option value="less">Less</option>
+                                  <option value="normal">Normal</option>
+                                  <option value="extra">Extra</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <div className="mb-1 text-[11px] font-medium text-zinc-600">Sugar</div>
+                                <select
+                                  value={it.sugar || "normal"}
+                                  onChange={(e) => updateCartItem(it.id, { sugar: e.target.value })}
+                                  className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-2 text-sm"
+                                >
+                                  <option value="less">Less</option>
+                                  <option value="normal">Normal</option>
+                                  <option value="extra">Extra</option>
+                                </select>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="mt-1 text-sm text-zinc-700">
@@ -875,7 +905,7 @@ export default function Kasir() {
               {/* ICE */}
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-700">Ice</label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { key: "less", label: "Less" },
                     { key: "normal", label: "Normal" },
@@ -886,7 +916,8 @@ export default function Kasir() {
                       type="button"
                       onClick={() => setIce(o.key)}
                       className={[
-                        "w-full rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                        "w-full rounded-xl border px-2 py-2 text-sm font-semibold transition",
+                        "active:scale-[0.99]",
                         ice === o.key
                           ? "border-zinc-900 bg-zinc-900 text-white"
                           : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50",
@@ -901,7 +932,7 @@ export default function Kasir() {
               {/* SUGAR */}
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-700">Sugar</label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { key: "less", label: "Less" },
                     { key: "normal", label: "Normal" },
@@ -912,7 +943,8 @@ export default function Kasir() {
                       type="button"
                       onClick={() => setSugar(o.key)}
                       className={[
-                        "w-full rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                        "w-full rounded-xl border px-2 py-2 text-sm font-semibold transition",
+                        "active:scale-[0.99]",
                         sugar === o.key
                           ? "border-zinc-900 bg-zinc-900 text-white"
                           : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50",
