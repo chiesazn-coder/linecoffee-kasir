@@ -41,8 +41,11 @@ const ReceiptPreview = React.forwardRef(function ReceiptPreview({ sale, rupiah }
         {sale.items.map((it) => (
           <div key={it.id} className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold capitalize">
-                {it.name} <span className="text-zinc-500">({it.size}ml)</span>
+              <div className="truncate text-sm font-semibold">
+                {it.product} <span className="text-zinc-500">({it.size}ml)</span>
+              </div>
+              <div className="text-[11px] text-zinc-600">
+                Varian: <span className="font-medium text-zinc-800">{String(it.variant || "").replace(/^\w/, (c) => c.toUpperCase())}</span>
               </div>
               <div className="text-[11px] text-zinc-600">
                 {it.qty} x Rp {rupiah(it.price)}
@@ -134,8 +137,11 @@ const ReceiptForExport = React.forwardRef(function ReceiptForExport({ sale, rupi
           <div key={it.id} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               {/* jangan truncate */}
-              <div style={{ fontWeight: 700 }}>
-                {it.name} <span style={{ opacity: 0.7 }}>({it.size}ml)</span>
+              <div style={{ fontWeight: 800 }}>
+                {it.product} <span style={{ opacity: 0.7 }}>({it.size}ml)</span>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>
+                Varian: <span style={{ fontWeight: 700, opacity: 1 }}>{it.variant}</span>
               </div>
               <div style={{ fontSize: 12, opacity: 0.8 }}>
                 {it.qty} x Rp {rupiah(it.price)}
@@ -223,9 +229,11 @@ export default function App() {
   }
          
   function addToCart(category, item) {
+    // category = nama menu/produk (mis. ITEMICANO)
+    // item.name = varian (mis. Classic, Premium)
     const id = `${category}-${item.name}-${selectedSize}`;
     const price = item.prices[selectedSize];
-
+  
     setCart((prev) => {
       const found = prev.find((x) => x.id === id);
       if (found) {
@@ -235,8 +243,8 @@ export default function App() {
         ...prev,
         {
           id,
-          category,
-          name: item.name,
+          product: category,     // ✅ nama menu/kopi
+          variant: item.name,    // ✅ varian
           size: selectedSize,
           price,
           qty: 1,
@@ -244,7 +252,7 @@ export default function App() {
       ];
     });
   }
-
+  
   function inc(id) {
     setCart((prev) => prev.map((x) => (x.id === id ? { ...x, qty: x.qty + 1 } : x)));
   }
@@ -585,15 +593,14 @@ export default function App() {
                   <div key={it.id} className="rounded-xl border border-zinc-200 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-medium capitalize">
-                          {it.name} <span className="text-zinc-500">({it.size}ml)</span>
+                        <div className="font-medium">
+                          {it.product} <span className="text-zinc-500">({it.size}ml)</span>
                         </div>
-                        <div className="text-xs text-zinc-600">{it.category}</div>
+                        <div className="text-xs text-zinc-600">Varian: {it.variant}</div>
                         <div className="mt-1 text-sm text-zinc-700">
                           Rp {rupiah(it.price)} x {it.qty}
                         </div>
                       </div>
-
                       <button
                         onClick={() => remove(it.id)}
                         className="rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"

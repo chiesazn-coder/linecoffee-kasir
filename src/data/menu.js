@@ -38,7 +38,7 @@ export const SIZES = [
       ],
     },
     {
-      category: "MACHIATO CARAMEL",
+      category: "CARETO",
       items: [
         { name: "classic", prices: { "250": 20000, "500": 38000, "1000": 70000 } },
         { name: "premium", prices: { "250": 22000, "500": 42000, "1000": 80000 } },
