@@ -33,10 +33,6 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
-
-        <div className="mt-4 text-xs text-zinc-500">
-          Tips: Mode Produksi akan kita isi di step berikutnya.
-        </div>
       </div>
     </div>
   );
