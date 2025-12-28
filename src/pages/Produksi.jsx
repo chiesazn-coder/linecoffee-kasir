@@ -44,14 +44,12 @@ function buildOneLabelHTML({ order, item, indexNo }) {
         </div>
 
         <div class="nameRow">
-          <div class="lbl">Nama</div>
           <div class="val">${escapeHtml(order.customerName || "-")}</div>
         </div>
 
         <div class="item">
           <div class="prod">${escapeHtml(item.product)}</div>
           <div class="meta">Var: ${escapeHtml(item.variant)} • ${escapeHtml(item.size)}ml</div>
-          <div class="qty">x1</div>
         </div>
 
         <div class="prefs">
@@ -284,8 +282,40 @@ export default function Produksi() {
                     </div>
 
                     <div className="mt-2 text-xs text-zinc-600">
-                      Tgl order: {formatDateTime(o.createdAt)} • Tgl produksi:{" "}
-                      {formatDateOnly(o.productionDate)}
+                      <div>Tgl order: {formatDateTime(o.createdAt)}</div>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <div className="text-xs text-zinc-600">Tgl produksi:</div>
+
+                        <input
+                          type="date"
+                          value={o.productionDate || ""}
+                          onChange={(e) => updateOrder(o.id, { productionDate: e.target.value })}
+                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const t = new Date();
+                            const y = t.getFullYear();
+                            const m = String(t.getMonth() + 1).padStart(2, "0");
+                            const d = String(t.getDate()).padStart(2, "0");
+                            updateOrder(o.id, { productionDate: `${y}-${m}-${d}` });
+                          }}
+                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-zinc-50"
+                        >
+                          Hari ini
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => updateOrder(o.id, { productionDate: "" })}
+                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-zinc-50"
+                        >
+                          Kosongkan
+                        </button>
+                      </div>
                     </div>
 
                     <div className="mt-3 space-y-2">
@@ -319,32 +349,18 @@ export default function Produksi() {
                   <div className="flex w-full flex-col gap-2 md:w-56">
                     <button
                       onClick={() => {
-                        const t = new Date();
-                        const y = t.getFullYear();
-                        const m = String(t.getMonth() + 1).padStart(2, "0");
-                        const d = String(t.getDate()).padStart(2, "0");
-                        const today = `${y}-${m}-${d}`;
-
-                        const prodDate = o.productionDate || today;
-
+                        // WAJIB: pastikan productionDate diisi dulu
                         if (!o.productionDate) {
-                          updateOrder(o.id, { productionDate: prodDate });
+                          alert("Isi dulu Tgl Produksi sebelum print sticker.");
+                          return;
                         }
 
-                        printStickers58x30({ ...o, productionDate: prodDate });
-
+                        printStickers58x30(o);
                         updateOrder(o.id, { status: "printed" });
                       }}
                       className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white hover:opacity-90"
                     >
                       Print Sticker 58mm
-                    </button>
-
-                    <button
-                      onClick={() => setProdDate(o)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white py-3 text-sm font-semibold hover:bg-zinc-50"
-                    >
-                      Set Tgl Produksi Hari Ini
                     </button>
 
                     <button

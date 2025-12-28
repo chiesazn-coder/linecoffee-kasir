@@ -192,8 +192,6 @@ export default function Kasir() {
   const receiptPreviewRef = useRef(null);
   const receiptExportRef = useRef(null);
   const [customerName, setCustomerName] = useState("");
-  const [sugar, setSugar] = useState("normal"); // less | normal | extra
-  const [ice, setIce] = useState("normal");     // less | normal | extra
   const [editingId, setEditingId] = useState(null); // id cart item yg sedang edit
 
   const total = useMemo(
@@ -750,9 +748,7 @@ export default function Kasir() {
                 setPaymentMethod("cash");
                 setCash("");
                 setCustomerName("");
-                setIsCheckoutOpen(true);
-                setSugar("normal");
-                setIce("normal");
+                setEditingId(null);
                 setIsCheckoutOpen(true);
               }}
               className="mt-3 w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white disabled:opacity-40"
@@ -901,65 +897,6 @@ export default function Kasir() {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {/* ICE */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">Ice</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { key: "less", label: "Less" },
-                    { key: "normal", label: "Normal" },
-                    { key: "extra", label: "Extra" },
-                  ].map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      onClick={() => setIce(o.key)}
-                      className={[
-                        "w-full rounded-xl border px-2 py-2 text-sm font-semibold transition",
-                        "active:scale-[0.99]",
-                        ice === o.key
-                          ? "border-zinc-900 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50",
-                      ].join(" ")}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* SUGAR */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">Sugar</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { key: "less", label: "Less" },
-                    { key: "normal", label: "Normal" },
-                    { key: "extra", label: "Extra" },
-                  ].map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      onClick={() => setSugar(o.key)}
-                      className={[
-                        "w-full rounded-xl border px-2 py-2 text-sm font-semibold transition",
-                        "active:scale-[0.99]",
-                        sugar === o.key
-                          ? "border-zinc-900 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50",
-                      ].join(" ")}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="col-span-2 text-xs text-zinc-500">
-                Ice dan Sugar akan muncul di sticker produksi, bukan di struk harga.
-              </div>
-            </div>
 
             {/* SUBMIT */}
             <button
