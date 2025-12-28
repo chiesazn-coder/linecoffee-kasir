@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MENU, SIZES, rupiah } from "./data/menu";
+import html2canvas from "html2canvas";
 
-function ReceiptPreview({ sale, rupiah }) {
+
+const ReceiptPreview = React.forwardRef(function ReceiptPreview({ sale, rupiah }, ref) {
   if (!sale) return null;
 
   const dateText = new Date(sale.createdAt).toLocaleString("id-ID", {
@@ -22,8 +24,10 @@ function ReceiptPreview({ sale, rupiah }) {
       : String(sale.paymentMethod || "-").toUpperCase();
 
   return (
-    <div className="mx-auto w-[320px] rounded-2xl bg-white p-3 shadow-sm ring-1 ring-zinc-200">
-      {/* header struk */}
+    <div
+      ref={ref}
+      className="mx-auto w-[320px] rounded-2xl bg-white p-3 shadow-sm ring-1 ring-zinc-200"
+    >
       <div className="text-center">
         <div className="text-base font-extrabold tracking-tight">L!ne Coffee</div>
         <div className="mt-0.5 text-xs text-zinc-600">Struk Pembelian</div>
@@ -33,7 +37,6 @@ function ReceiptPreview({ sale, rupiah }) {
 
       <div className="my-3 border-t border-dashed border-zinc-300" />
 
-      {/* items */}
       <div className="space-y-2">
         {sale.items.map((it) => (
           <div key={it.id} className="flex items-start justify-between gap-2">
@@ -54,7 +57,6 @@ function ReceiptPreview({ sale, rupiah }) {
 
       <div className="my-3 border-t border-dashed border-zinc-300" />
 
-      {/* totals */}
       <div className="space-y-1 text-sm">
         <div className="flex items-center justify-between">
           <span className="text-zinc-600">Total</span>
@@ -75,11 +77,102 @@ function ReceiptPreview({ sale, rupiah }) {
       </div>
 
       <div className="my-3 border-t border-dashed border-zinc-300" />
-
       <div className="text-center text-xs text-zinc-600">Terima kasih 🙏</div>
     </div>
   );
-}
+});
+
+const ReceiptForExport = React.forwardRef(function ReceiptForExport({ sale, rupiah }, ref) {
+  if (!sale) return null;
+
+  const dateText = new Date(sale.createdAt).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const method =
+    sale.paymentMethod === "cash"
+      ? "CASH"
+      : sale.paymentMethod === "qris"
+      ? "QRIS"
+      : sale.paymentMethod === "transfer"
+      ? "TRANSFER"
+      : String(sale.paymentMethod || "-").toUpperCase();
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        width: 320,
+        background: "#fff",
+        color: "#111",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 14,
+        lineHeight: 1.25,
+        padding: 16,
+        // kunci anti “kepotong” (descender font)
+        paddingBottom: 22,
+        overflow: "visible",
+        display: "inline-block",
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>L!ne Coffee</div>
+        <div style={{ marginTop: 4, fontSize: 12 }}>Struk Pembelian</div>
+        <div style={{ marginTop: 2, fontSize: 12 }}>{dateText}</div>
+        <div style={{ marginTop: 2, fontSize: 12 }}>ID: {sale.id}</div>
+      </div>
+
+      <div style={{ borderTop: "1px dashed #999", margin: "12px 0" }} />
+
+      <div style={{ display: "grid", gap: 10 }}>
+        {sale.items.map((it) => (
+          <div key={it.id} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              {/* jangan truncate */}
+              <div style={{ fontWeight: 700 }}>
+                {it.name} <span style={{ opacity: 0.7 }}>({it.size}ml)</span>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>
+                {it.qty} x Rp {rupiah(it.price)}
+              </div>
+            </div>
+            <div style={{ whiteSpace: "nowrap", fontWeight: 700 }}>
+              Rp {rupiah(it.price * it.qty)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ borderTop: "1px dashed #999", margin: "12px 0" }} />
+
+      <div style={{ display: "grid", gap: 8 }}>
+        {[
+          ["Total", `Rp ${rupiah(sale.total)}`],
+          ["Metode", method],
+          ["Dibayar", `Rp ${rupiah(sale.paid)}`],
+          ["Kembalian", `Rp ${rupiah(sale.change)}`],
+        ].map(([l, r]) => (
+          <div key={l} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ opacity: 0.8 }}>{l}</div>
+            <div style={{ fontWeight: 800, whiteSpace: "nowrap" }}>{r}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ borderTop: "1px dashed #999", margin: "12px 0" }} />
+
+      <div style={{ textAlign: "center", fontSize: 12, opacity: 0.8 }}>
+        Terima kasih 🙏
+      </div>
+    </div>
+  );
+});
+
 
 
 export default function App() {
@@ -89,7 +182,8 @@ export default function App() {
   const [paymentMethod, setPaymentMethod] = useState("cash"); // cash | qris | transfer
   const [cash, setCash] = useState(""); // input uang diterima untuk cash
   const [lastSale, setLastSale] = useState(null);
-  
+  const receiptPreviewRef = useRef(null);
+  const receiptExportRef = useRef(null);
 
 
   const total = useMemo(
@@ -97,6 +191,37 @@ export default function App() {
     [cart]
   );
 
+  async function downloadReceiptPNG() {
+    if (!receiptExportRef.current || !lastSale) return;
+  
+    try {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  
+      const el = receiptExportRef.current;
+  
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
+      });
+  
+      const dataUrl = canvas.toDataURL("image/png");
+  
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `Struk-${lastSale.id}.png`;
+      a.click();
+    } catch (e) {
+      console.error(e);
+      alert("Gagal menyimpan struk sebagai PNG");
+    }
+  }
+         
   function addToCart(category, item) {
     const id = `${category}-${item.name}-${selectedSize}`;
     const price = item.prices[selectedSize];
@@ -372,7 +497,6 @@ export default function App() {
         <header className="mb-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold">Line Coffee Kasir</h1>
-            <p className="text-sm text-zinc-600">POS sederhana: pilih menu, masuk keranjang, hitung total</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -660,33 +784,53 @@ export default function App() {
         </div>
       )}
 
-    {lastSale && (
-      <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold">Preview Struk</div>
-            <div className="text-xs text-zinc-600">{lastSale.id}</div>
+      {lastSale && (
+        <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold">Preview Struk</div>
+              <div className="text-xs text-zinc-600">{lastSale.id}</div>
+            </div>
+            <button
+              onClick={() => setLastSale(null)}
+              className="rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
+            >
+              Tutup
+            </button>
           </div>
-          <button
-            onClick={() => setLastSale(null)}
-            className="rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
+
+          {/* ini yang di-capture */}
+          <div
+            ref={receiptPreviewRef}
+            className="mx-auto mt-3 inline-block bg-white p-4"
+            style={{ overflow: "visible" }}
           >
-            Tutup
+            <ReceiptPreview sale={lastSale} rupiah={rupiah} />
+          </div>
+
+          <button
+            onClick={() => printReceipt(lastSale)}
+            className="mt-3 w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white"
+          >
+            Cetak Struk
+          </button>
+
+          <button
+            onClick={downloadReceiptPNG}
+            className="mt-2 w-full rounded-xl border border-zinc-200 bg-white py-3 text-sm font-semibold hover:bg-zinc-50"
+          >
+            Simpan Struk (PNG)
           </button>
         </div>
+      )}
 
-        <div className="mt-3">
-          <ReceiptPreview sale={lastSale} rupiah={rupiah} />
-        </div>
-
-        <button
-          onClick={() => printReceipt(lastSale)}
-          className="mt-3 w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white"
-        >
-          Cetak Struk
-        </button>
+      {/* sumber export (hidden) */}
+      <div style={{ position: "fixed", left: -99999, top: 0 }}>
+        <ReceiptForExport ref={receiptExportRef} sale={lastSale} rupiah={rupiah} />
       </div>
-    )}
+
+      <div style={{ height: 6 }} />
+
     </div>
   );
 }
