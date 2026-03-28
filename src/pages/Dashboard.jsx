@@ -31,6 +31,16 @@ export default function Dashboard() {
                 Cetak label antrian dan detail order tanpa harga.
               </div>
             </Link>
+
+            <Link
+              to="/admin"
+              className="rounded-2xl border border-zinc-200 bg-white p-5 hover:bg-zinc-50 transition"
+            >
+              <div className="text-lg font-semibold text-zinc-900">Admin Portal</div>
+              <div className="mt-1 text-sm text-zinc-500">
+                Atur harga menu dan kelola item produk.
+              </div>
+            </Link>
           </div>
         </div>
       </div>
