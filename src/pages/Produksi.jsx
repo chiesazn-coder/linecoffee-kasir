@@ -5,38 +5,31 @@ import { deleteOrder, getOrders, updateOrder } from "../lib/orderStore";
 function formatDateTime(iso) {
   if (!iso) return "-";
   return new Date(iso).toLocaleString("id-ID", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
 
-function formatDateOnly(yyyyMmDd) {
-  if (!yyyyMmDd) return "-";
-  // tampilkan tetap YYYY-MM-DD biar jelas buat produksi
-  return yyyyMmDd;
-}
-
+// ✅ Label diperbarui agar tim produksi sadar ada EXTRA
 function labelIce(v) {
   const s = String(v || "normal").toUpperCase();
-  if (s === "LESS") return "ICE, LESS";
-  if (s === "EXTRA") return "ICE, EXTRA";
-  return "ICE, NORMAL";
+  if (s === "LESS") return "ICE: LESS";
+  if (s === "EXTRA") return "⭐ EXTRA SHOT ⭐"; // Kasih bintang biar barista liat
+  return "ICE: NORMAL";
 }
 
 function labelSugar(v) {
   const s = String(v || "normal").toUpperCase();
-  if (s === "LESS") return "LESS SUGAR";
-  if (s === "EXTRA") return "EXTRA SUGAR";
-  return "NORMAL SUGAR";
+  if (s === "LESS") return "SUGAR: LESS";
+  if (s === "EXTRA") return "⭐ EXTRA SUGAR ⭐"; // Kasih bintang biar barista liat
+  return "SUGAR: NORMAL";
 }
 
-function buildOneLabelHTML({ order, item, indexNo }) {
-  // indexNo opsional kalau kamu mau tanda urutan label (tidak wajib)
+function buildOneLabelHTML({ order, item }) {
+  // Cek apakah ada extra untuk kasih border/tanda khusus di stiker
+  const isExtra = item.ice === "extra" || item.sugar === "extra";
+
   return `
-    <div class="paper">
+    <div class="paper ${isExtra ? 'has-extra' : ''}">
       <div class="rot">
         <div class="top">
           <div class="brand">L!ne Coffee</div>
@@ -49,31 +42,28 @@ function buildOneLabelHTML({ order, item, indexNo }) {
 
         <div class="item">
           <div class="prod">${escapeHtml(item.product)}</div>
-          <div class="meta">Var: ${escapeHtml(item.variant)} • ${escapeHtml(item.size)}ml</div>
+          <div class="meta">${escapeHtml(item.variant)} • ${escapeHtml(item.size)}ml</div>
         </div>
 
         <div class="prefs">
-          <div>${escapeHtml(labelIce(item.ice))}</div>
-          <div>${escapeHtml(labelSugar(item.sugar))}</div>
+          <div class="${item.ice === 'extra' ? 'bold-extra' : ''}">${escapeHtml(labelIce(item.ice))}</div>
+          <div class="${item.sugar === 'extra' ? 'bold-extra' : ''}">${escapeHtml(labelSugar(item.sugar))}</div>
         </div>
 
         <div class="dates">
-          Order: ${escapeHtml(formatDateTime(order.createdAt))} •
-          Prod: ${escapeHtml(formatDateOnly(order.productionDate))}
+          ${escapeHtml(formatDateTime(order.createdAt))}
         </div>
-      
       </div>
     </div>
   `;
 }
 
 function printStickers58x30(order) {
-  // flatten items -> jadikan array label per 1 pcs
   const labels = [];
   (order.items || []).forEach((it) => {
     const qty = Math.max(1, Number(it.qty || 1));
     for (let i = 0; i < qty; i++) {
-      labels.push({ order, item: it, indexNo: i + 1 });
+      labels.push({ order, item: it });
     }
   });
 
@@ -85,297 +75,118 @@ function printStickers58x30(order) {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Sticker</title>
   <style>
-    @media print {
-      @page { size: 58mm 30mm; margin: 0; }
-    }
+    @media print { @page { size: 58mm 30mm; margin: 0; } }
+    body { margin:0; padding:0; font-family: monospace; }
+    .paper { width: 58mm; height: 30mm; overflow: hidden; border: 1px solid transparent; }
+    /* Jika ada extra, beri garis bawah tebal di stiker sebagai pengingat */
+    .has-extra { border-bottom: 3px solid #000; } 
+    
+    .rot { padding: 2mm; }
+    .top { display: flex; justify-content: space-between; margin-bottom: 1mm; }
+    .brand { font-weight: bold; font-size: 11px; }
+    .queue { font-weight: 900; font-size: 16px; border: 1px solid #000; padding: 0 2px; }
 
-    body { margin:0; padding:0; background:#fff; }
-    .paper{
-      width: 58mm;
-      height: 30mm;
-      overflow: hidden;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      color:#000;
-    }
+    .nameRow { font-size: 12px; font-weight: 900; margin-bottom: 1.5mm; border-bottom: 0.5px solid #eee; }
+    
+    .item { margin-bottom: 1mm; }
+    .prod { font-weight: 900; font-size: 12px; text-transform: uppercase; }
+    .meta { font-size: 10px; }
 
-    .rot{
-      width: 58mm;
-      height: 30mm;
-      box-sizing: border-box;
-      padding: 2.5mm 2mm;
-    }
+    .prefs { font-size: 10px; font-weight: bold; margin-top: 1mm; }
+    /* Style khusus untuk teks Extra agar sangat mencolok */
+    .bold-extra { background: #000; color: #fff; padding: 0 2px; display: inline-block; }
 
-    .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 2mm;
-    }
-    .brand { font-weight: 900; font-size: 12px; letter-spacing: .3px; }
-    .queue { font-weight: 900; font-size: 14px; }
-
-    .nameRow {
-      display:flex;
-      justify-content: space-between;
-      gap: 2mm;
-      margin-bottom: 2mm;
-      font-size: 11px;
-    }
-    .nameRow .lbl { opacity: .85; }
-    .nameRow .val { font-weight: 900; }
-
-    .item {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 1mm 2mm;
-      align-items: start;
-      margin-bottom: 1mm;
-    }
-    .prod { font-weight: 900; font-size: 11px; }
-    .meta { grid-column: 1 / 2; font-size: 10px; opacity: .85; }
-    .qty { grid-column: 2 / 3; grid-row: 1 / 3; font-weight: 900; font-size: 11px; white-space: nowrap; }
-
-    .prefs{
-      display:flex;
-      justify-content: space-between;
-      gap: 2mm;
-      font-size: 10px;
-      font-weight: 800;
-      margin-top: .5mm;
-    }
-
-    .dates {
-      display:flex;
-      justify-content: space-between;
-      gap: 2mm;
-      margin-top: 1.2mm;
-      font-size: 8px;
-      opacity: .9;
-      white-space: nowrap;
-    }
-
+    .dates { font-size: 7px; margin-top: 2mm; text-align: right; opacity: 0.7; }
     .pageBreak { page-break-after: always; }
-    .pageBreak:last-child { page-break-after: auto; }
   </style>
 </head>
 <body>
   ${labelsHtml}
-
-  <script>
-    window.onload = () => {
-      setTimeout(() => window.print(), 300);
-      // window.onafterprint = () => window.close();
-    };
-  </script>
+  <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); };</script>
 </body>
 </html>`;
 
-  const w = window.open("", "PRINT_STICKER", "width=520,height=420");
-  if (!w) { alert("Pop-up diblokir browser. Izinkan pop-up untuk print sticker."); return; }
-  w.document.open();
+  const w = window.open("", "PRINT_STICKER", "width=500,height=400");
   w.document.write(html);
   w.document.close();
 }
 
 function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  return String(str ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
 
 export default function Produksi() {
   const [orders, setOrders] = useState([]);
 
-  // load + auto refresh
   useEffect(() => {
     const load = () => setOrders(getOrders());
-
     load();
     window.addEventListener("orders:changed", load);
-    window.addEventListener("storage", load); // kalau buka 2 tab
-
-    return () => {
-      window.removeEventListener("orders:changed", load);
-      window.removeEventListener("storage", load);
-    };
+    return () => window.removeEventListener("orders:changed", load);
   }, []);
 
-  const sorted = useMemo(() => {
-    // tampilkan order terbaru di atas (sudah begitu dari store), tapi kita rapihin aja
-    return [...orders];
-  }, [orders]);
-
-  function setProdDate(order) {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, "0");
-    const d = String(today.getDate()).padStart(2, "0");
-    const yyyyMmDd = `${y}-${m}-${d}`;
-
-    updateOrder(order.id, { productionDate: yyyyMmDd });
-  }
-
-  function markPrinted(order) {
-    updateOrder(order.id, { status: "printed" });
-  }
-
-  function remove(order) {
-    if (!confirm("Hapus order ini?")) return;
-    deleteOrder(order.id);
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <div className="mx-auto max-w-6xl p-4 md:p-6">
-        <header className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen bg-[#F8F9FA] text-zinc-900 pb-20">
+      <div className="mx-auto max-w-5xl p-4 md:p-6">
+        <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Line Coffee Produksi</h1>
-            <div className="text-sm text-zinc-600">
-              Print sticker 58mm tanpa harga (thermal).
-            </div>
+            <h1 className="text-2xl font-black italic uppercase tracking-tighter text-zinc-900">Line Coffee <span className="text-zinc-300">Produksi</span></h1>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Kitchen & Bar Station</p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              to="/"
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-zinc-50"
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/kasir"
-              className="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
-            >
-              Ke Kasir
-            </Link>
+          <div className="flex gap-2">
+            <Link to="/" className="px-5 py-2.5 bg-white border border-zinc-200 rounded-2xl text-xs font-bold shadow-sm">Dashboard</Link>
+            <Link to="/kasir" className="px-5 py-2.5 bg-zinc-900 text-white rounded-2xl text-xs font-bold shadow-lg shadow-zinc-200">Kasir</Link>
           </div>
         </header>
 
-        {sorted.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-6 text-sm text-zinc-600">
-            Belum ada order produksi. Lakukan transaksi dari Kasir dulu.
+        {orders.length === 0 ? (
+          <div className="bg-white p-20 rounded-[40px] text-center border border-dashed border-zinc-200">
+             <p className="text-zinc-300 font-black uppercase tracking-widest text-xs italic">Antrean Kosong</p>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {sorted.map((o) => (
-              <div
-                key={o.id}
-                className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200"
-              >
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-xl bg-zinc-900 px-3 py-1.5 text-sm font-extrabold text-white">
-                        #{o.queueNo}
-                      </div>
-                      <div className="text-sm font-semibold">
-                        {o.customerName || "-"}
-                      </div>
-                      <div className="text-xs text-zinc-500">
-                        Status: {o.status || "new"}
+          <div className="grid gap-4">
+            {orders.map((o) => (
+              <div key={o.id} className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 group">
+                <div className="flex flex-col md:flex-row justify-between gap-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center text-xl font-black italic">#{o.queueNo}</div>
+                      <div>
+                        <h2 className="text-lg font-black uppercase tracking-tight">{o.customerName || "Tanpa Nama"}</h2>
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{formatDateTime(o.createdAt)}</p>
                       </div>
                     </div>
 
-                    <div className="mt-2 text-xs text-zinc-600">
-                      <div>Tgl order: {formatDateTime(o.createdAt)}</div>
-
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <div className="text-xs text-zinc-600">Tgl produksi:</div>
-
-                        <input
-                          type="date"
-                          value={o.productionDate || ""}
-                          onChange={(e) => updateOrder(o.id, { productionDate: e.target.value })}
-                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs"
-                        />
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const t = new Date();
-                            const y = t.getFullYear();
-                            const m = String(t.getMonth() + 1).padStart(2, "0");
-                            const d = String(t.getDate()).padStart(2, "0");
-                            updateOrder(o.id, { productionDate: `${y}-${m}-${d}` });
-                          }}
-                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-zinc-50"
-                        >
-                          Hari ini
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => updateOrder(o.id, { productionDate: "" })}
-                          className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold hover:bg-zinc-50"
-                        >
-                          Kosongkan
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 space-y-2">
-                      {(o.items || []).map((it, idx) => (
-                        <div
-                          key={idx}
-                          className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="text-sm font-semibold">
-                                {it.product}{" "}
-                                <span className="text-zinc-500">
-                                  ({it.size}ml)
-                                </span>
-                              </div>
-                              <div className="text-xs text-zinc-600">
-                                Varian: {it.variant}
-                              </div>
-                              <div className="text-xs text-zinc-600">
-                                Ice: {it.ice || "normal"} • Sugar: {it.sugar || "normal"}
-                              </div>
-                            </div>
-                            <div className="text-sm font-extrabold">x{it.qty}</div>
+                    <div className="grid gap-2">
+                      {o.items.map((it, idx) => (
+                        <div key={idx} className={`p-4 rounded-2xl border ${it.ice === 'extra' || it.sugar === 'extra' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-50 bg-zinc-50'} flex justify-between items-center`}>
+                          <div>
+                            <p className="text-xs font-black uppercase italic">{it.product} ({it.size}ml)</p>
+                            <p className={`text-[10px] font-bold uppercase ${it.ice === 'extra' || it.sugar === 'extra' ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                              Var: {it.variant} | 
+                              <span className={it.ice === 'extra' ? 'underline text-white' : ''}> Ice: {it.ice}</span> | 
+                              <span className={it.sugar === 'extra' ? 'underline text-white' : ''}> Sug: {it.sugar}</span>
+                            </p>
                           </div>
+                          <div className="text-lg font-black italic">x{it.qty}</div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex w-full flex-col gap-2 md:w-56">
-                    <button
+                  <div className="w-full md:w-48 flex flex-col gap-2 justify-center">
+                    <button 
                       onClick={() => {
-                        // WAJIB: pastikan productionDate diisi dulu
-                        if (!o.productionDate) {
-                          alert("Isi dulu Tgl Produksi sebelum print sticker.");
-                          return;
-                        }
-
+                        const today = new Date().toISOString().split('T')[0];
+                        updateOrder(o.id, { productionDate: today });
                         printStickers58x30(o);
-                        updateOrder(o.id, { status: "printed" });
                       }}
-                      className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white hover:opacity-90"
+                      className="w-full py-4 bg-zinc-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-zinc-200 active:scale-95 transition-all"
                     >
-                      Print Sticker 58mm
+                      Print Sticker
                     </button>
-
-                    <button
-                      onClick={() => markPrinted(o)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white py-3 text-sm font-semibold hover:bg-zinc-50"
-                    >
-                      Tandai Printed
-                    </button>
-
-                    <button
-                      onClick={() => remove(o)}
-                      className="w-full rounded-xl border border-red-200 bg-white py-3 text-sm font-semibold text-red-700 hover:bg-red-50"
-                    >
-                      Hapus Order
-                    </button>
+                    <button onClick={() => deleteOrder(o.id)} className="w-full py-3 text-zinc-300 hover:text-red-500 text-[9px] font-bold uppercase transition-colors">Hapus Antrean</button>
                   </div>
                 </div>
               </div>
