@@ -166,7 +166,7 @@ export default function Kasir() {
           <section className="lg:col-span-2 space-y-8 bg-white p-6 md:p-8 rounded-[40px] border border-zinc-100 shadow-sm">
             {liveMenu.map(group => (
               <div key={group.category}>
-                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-300 mb-4 border-b border-zinc-50 pb-2">{group.category}</h3>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black mb-4 border-b border-zinc-50 pb-2">{group.category}</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {group.items.sort((a,b)=>a.name.localeCompare(b.name)).map(it => (
                     <button key={it.id} onClick={() => addToCart(group.category, it)} className="group bg-zinc-50 hover:bg-white hover:border-zinc-900 border border-transparent p-5 rounded-[28px] text-left transition-all active:scale-95">
