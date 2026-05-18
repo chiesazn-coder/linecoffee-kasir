@@ -1,55 +1,135 @@
-import { supabase } from './supabase';
+import { db } from './firebase';
+import { supabase } from './supabase'; // Diimpor kembali agar file lain tidak error
+import { 
+  collection, 
+  getDocs, 
+  doc, 
+  updateDoc, 
+  setDoc,
+  query, 
+  where,
+  orderBy 
+} from 'firebase/firestore';
 
-// 1. Ambil semua menu (Sudah ada)
+// ==========================================
+// 1. AMBIL SEMUA MENU (Kategori + Items)
+// ==========================================
 export async function fetchMenu() {
-  const { data, error } = await supabase
-    .from('categories')
-    .select(`
-      id,
-      category:name,
-      items:menu_items(id, name, prices, category_id)
-    `)
-    .order('display_order', { ascending: true });
-
-  if (error) throw error;
-  return data;
-}
-
-// 2. Update harga (Sudah ada)
-export async function updateMenuItemPrice(itemName, newPrices) {
-  const { error } = await supabase
-    .from('menu_items')
-    .update({ prices: newPrices })
-    .eq('name', itemName);
+  try {
+    // a. Ambil semua categories, diurutkan berdasarkan display_order
+    const categoriesSnapshot = await getDocs(
+      query(collection(db, 'categories'), orderBy('display_order', 'asc'))
+    );
     
-  if (error) throw error;
+    // b. Ambil semua menu_items
+    const itemsSnapshot = await getDocs(collection(db, 'menu_items'));
+    
+    // c. Mapping data items ke array biasa
+    const allItems = itemsSnapshot.docs.map(doc => ({
+      id: parseInt(doc.id) || doc.id,
+      ...doc.data()
+    }));
+
+    // d. Validasi jika data kategori di Firebase masih kosong
+    if (categoriesSnapshot.empty) {
+      console.warn("Koleksi 'categories' di Firestore masih kosong!");
+      return [];
+    }
+
+    // e. Gabungkan data items ke kategorinya masing-masing (Client-side Join)
+    const formattedMenu = categoriesSnapshot.docs.map(catDoc => {
+      const catData = catDoc.data();
+      const catId = parseInt(catDoc.id) || catDoc.id;
+
+      // Filter item yang sesuai dengan ID kategori ini
+      const filteredItems = allItems.filter(item => item.category_id === catId);
+
+      return {
+        id: catId,
+        category: catData.name || "Tanpa Kategori", // Mapping 'name' ke properti 'category'
+        items: filteredItems
+      };
+    });
+
+    return formattedMenu;
+  } catch (error) {
+    console.error("Error fetching menu from Firestore:", error);
+    return []; // Kembalikan array kosong jika terjadi error agar aplikasi tidak ngeblank putih
+  }
 }
 
-// 3. TAMBAHKAN INI: Fungsi untuk Tambah Item Baru
+// ==========================================
+// 2. UPDATE HARGA BERDASARKAN NAMA ITEM
+// ==========================================
+export async function updateMenuItemPrice(itemName, newPrices) {
+  try {
+    // Cari dokumen yang memiliki field name === itemName
+    const q = query(collection(db, 'menu_items'), where('name', '==', itemName));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      throw new Error(`Menu item dengan nama "${itemName}" tidak ditemukan.`);
+    }
+
+    // Update dokumen pertama yang ditemukan
+    const docRef = querySnapshot.docs[0].ref;
+    await updateDoc(docRef, { prices: newPrices });
+  } catch (error) {
+    console.error("Error updating price in Firestore:", error);
+    throw error;
+  }
+}
+
+// ==========================================
+// 3. FUNGSI UNTUK TAMBAH ITEM BARU
+// ==========================================
 export async function addMenuItem(categoryId, name, prices) {
-  const { data, error } = await supabase
-    .from('menu_items')
-    .insert([{ 
-      category_id: categoryId, 
+  try {
+    // Gunakan Timestamp milidetik sebagai ID number unik agar tidak merusak sistem sortir angka kamu
+    const newId = Date.now(); 
+    const docRef = doc(db, 'menu_items', newId.toString());
+
+    const newItemData = {
+      category_id: parseInt(categoryId) || categoryId, 
       name: name, 
       prices: prices 
-    }])
-    .select();
+    };
+
+    // Simpan ke Firestore
+    await setDoc(docRef, newItemData);
     
-  if (error) throw error;
-  return data[0];
+    // Return dengan format ID number agar sesuai dengan state React kamu
+    return { id: newId, ...newItemData };
+  } catch (error) {
+    console.error("Error adding menu item to Firestore:", error);
+    throw error;
+  }
 }
 
-// 4. (Opsional) Langsung tambahkan export supabase jika Admin.jsx membutuhkannya
-export { supabase };
-
-// Tambah kategori baru
+// ==========================================
+// 4. TAMBAH KATEGORI BARU
+// ==========================================
 export async function addCategory(name) {
-  const { data, error } = await supabase
-    .from('categories')
-    .insert([{ name: name.toUpperCase() }])
-    .select();
+  try {
+    const newId = Date.now();
+    const docRef = doc(db, 'categories', newId.toString());
     
-  if (error) throw error;
-  return data[0];
+    const newCategoryData = { 
+      name: name.toUpperCase(),
+      display_order: 99 // Nilai default display_order agar berada di urutan bawah
+    };
+
+    await setDoc(docRef, newCategoryData);
+    
+    return { id: newId, category: newCategoryData.name, items: [] };
+  } catch (error) {
+    console.error("Error adding category to Firestore:", error);
+    throw error;
+  }
 }
+
+// ==========================================
+// 5. PENYELAMAT COMPONENT LAMA (EXPORT SUPABASE)
+// ==========================================
+// Tetap ekspor objek supabase asli agar halaman Admin.jsx tidak crash saat nyari modul import-nya
+export { supabase };

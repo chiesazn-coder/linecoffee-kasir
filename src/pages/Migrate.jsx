@@ -1,54 +1,71 @@
-import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { MENU } from '../data/menu';
+import { useState } from "react";
+import { supabase } from "../lib/supabase"; // Jalur ke supabase.js kamu
+import { db } from "../lib/firebase"; // Jalur ke firebase.js kamu
+import { doc, writeBatch } from "firebase/firestore";
 
 export default function Migrate() {
-  const [status, setStatus] = useState("Siap memindahkan data...");
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
 
-  const startMigration = async () => {
-    setStatus("Sedang memproses...");
+  const jalankanMigrasiKategori = async () => {
+    setLoading(true);
+    setStatus("Sedang mengambil data KATEGORI dari Supabase...");
+
     try {
-      for (const cat of MENU) {
-        // 1. Masukkan/Dapatkan Kategori
-        const { data: categoryData, error: catError } = await supabase
-          .from('categories')
-          .upsert({ name: cat.category }, { onConflict: 'name' })
-          .select()
-          .single();
+      // 1. Ambil data dari tabel categories Supabase
+      const { data: categoriesData, error: dbError } = await supabase
+        .from("categories")
+        .select("*");
 
-        if (catError) throw catError;
+      if (dbError) throw dbError;
 
-        // 2. Masukkan Item untuk kategori tersebut
-        const itemsToInsert = cat.items.map(item => ({
-          category_id: categoryData.id,
-          name: item.name,
-          prices: item.prices
-        }));
+      setStatus(`Menemukan ${categoriesData.length} kategori. Menyiapkan paket batch Firebase...`);
 
-        const { error: itemError } = await supabase
-          .from('menu_items')
-          .insert(itemsToInsert);
+      const batch = writeBatch(db);
 
-        if (itemError) throw itemError;
-        setStatus(`Berhasil memproses kategori: ${cat.category}`);
-      }
-      setStatus("Selesai! Semua data menu sudah pindah ke Supabase.");
-    } catch (err) {
-      console.error(err);
-      setStatus("Error: " + err.message);
+      // 2. Masukkan semua data kategori ke dalam antrean batch Firestore
+      categoriesData.forEach((cat) => {
+        const docRef = doc(db, "categories", cat.id.toString());
+        batch.set(docRef, {
+          name: cat.name,
+          display_order: cat.display_order || 0 // Disertakan display_order agar urutan menu tidak acak-acakan
+        });
+      });
+
+      setStatus("Mengirim data kategori ke Firebase Firestore...");
+
+      // 3. Eksekusi kirim batch sekaligus (1 kali request)
+      await batch.commit();
+
+      setStatus(`Migrasi Sukses Total! Semua ${categoriesData.length} kategori berhasil dipindahkan.`);
+    } catch (error) {
+      console.error(error);
+      setStatus(`Migrasi Gagal: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-10 text-center">
-      <h1 className="text-2xl font-bold mb-4">Migrasi Data Menu</h1>
-      <p className="mb-6 bg-zinc-100 p-4 rounded">{status}</p>
-      <button 
-        onClick={startMigration}
-        className="bg-zinc-900 text-white px-6 py-2 rounded-xl"
-      >
-        Mulai Pindahkan Data ke Supabase
-      </button>
+    <div className="p-10 text-white bg-zinc-900 min-h-screen flex flex-col items-center justify-center">
+      <div className="max-w-md w-full bg-zinc-800 p-8 rounded-3xl border border-zinc-700 text-center">
+        <h1 className="text-2xl font-black uppercase tracking-tight mb-2">Migrasi Kategori</h1>
+        <p className="text-zinc-400 text-sm mb-6">Langkah terakhir: Pindahkan data kategori ke Firebase Firestore.</p>
+        
+        <button 
+          onClick={jalankanMigrasiKategori}
+          disabled={loading}
+          className="w-full px-6 py-4 bg-amber-600 rounded-xl font-bold hover:bg-amber-700 disabled:bg-zinc-600 transition-all text-white"
+        >
+          {loading ? "Memproses..." : "Mulai Migrasi Kategori"}
+        </button>
+        
+        {status && (
+          <div className="mt-6 p-4 bg-zinc-900 rounded-xl border border-zinc-700 text-xs font-mono text-left text-amber-400 break-words">
+            {status}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
