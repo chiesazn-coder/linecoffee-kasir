@@ -7,7 +7,6 @@ import {
   updateDoc, 
   setDoc,
   query, 
-  where,
   orderBy 
 } from 'firebase/firestore';
 
@@ -59,20 +58,11 @@ export async function fetchMenu() {
 }
 
 // ==========================================
-// 2. UPDATE HARGA BERDASARKAN NAMA ITEM
+// 2. UPDATE HARGA BERDASARKAN ID ITEM
 // ==========================================
-export async function updateMenuItemPrice(itemName, newPrices) {
+export async function updateMenuItemPrice(itemId, newPrices) {
   try {
-    // Cari dokumen yang memiliki field name === itemName
-    const q = query(collection(db, 'menu_items'), where('name', '==', itemName));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      throw new Error(`Menu item dengan nama "${itemName}" tidak ditemukan.`);
-    }
-
-    // Update dokumen pertama yang ditemukan
-    const docRef = querySnapshot.docs[0].ref;
+    const docRef = doc(db, 'menu_items', itemId.toString());
     await updateDoc(docRef, { prices: newPrices });
   } catch (error) {
     console.error("Error updating price in Firestore:", error);

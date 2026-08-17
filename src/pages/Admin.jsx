@@ -32,7 +32,7 @@ export default function Admin() {
         const currentCat = sortedData.find(c => c.id === selectedCategory.id);
         if (currentCat) setSelectedCategory(currentCat);
       }
-    } catch (err) { alert("Gagal ambil data"); }
+    } catch { alert("Gagal ambil data"); }
     finally { setLoading(false); }
   }
 
@@ -44,7 +44,7 @@ export default function Admin() {
       else await addMenuItem(selectedCategory.id, inputValue, { "250": 0, "500": 0, "1000": 0 });
       setIsModalOpen(false);
       loadData();
-    } catch (err) { alert("Terjadi kesalahan."); }
+    } catch { alert("Terjadi kesalahan."); }
   };
 
   const confirmDelete = async () => {
@@ -60,23 +60,18 @@ export default function Admin() {
       
       setDeleteTarget(null);
       loadData();
-    } catch (err) { alert("Gagal menghapus."); }
+    } catch { alert("Gagal menghapus."); }
   };
 
   // ✅ Perbaikan: Update harga menggunakan ITEM ID agar tidak bocor ke kategori lain
   async function handleSaveClick(itemId, currentPrices) {
     setSavingItem(itemId);
     try {
-      // Kita perlu kirim ID ke service untuk update yang presisi
-      const { error } = await supabase
-        .from('menu_items')
-        .update({ prices: currentPrices })
-        .eq('id', itemId);
-      
-      if (error) throw error;
+      await updateMenuItemPrice(itemId, currentPrices);
       setTimeout(() => setSavingItem(null), 800);
     } catch (err) { 
-      alert("Gagal simpan"); 
+      console.error("Gagal menyimpan harga ke Firestore:", err);
+      alert("Gagal menyimpan harga. Silakan coba lagi.");
       setSavingItem(null); 
     }
   }

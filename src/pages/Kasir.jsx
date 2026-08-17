@@ -75,8 +75,6 @@ export default function Kasir() {
   const [lastSale, setLastSale] = useState(null);
   const receiptExportRef = useRef(null);
   const [customerName, setCustomerName] = useState("");
-  const [editingId, setEditingId] = useState(null);
-
   useEffect(() => {
     async function getMenu() {
       try {
